@@ -6,6 +6,8 @@ A simple http web-server that updates and returns the number of requests the pas
 2. `curl http://localhost:8080/counter`
 3. GOTO 2.
 
+Also try out `go run buffer.go`
+
 ## Problem description
 Create a Go HTTP server that on each request responds with a counter of the total number of requests that it has received during the last 60 seconds.
 
@@ -17,7 +19,12 @@ The key are based on seconds, with a range from 0 to 59, which will keep the siz
 
 I chose to write the JSON file after each request ensuring persistence and as up-to-date copy as possible. IO operations can be costly, but this is only writes (and overwrites) and it is in a goroutine, so it doesn't take up time for a response to the user.
 
-### Other implementation options I considered/evaluated.
+### Other implementation options I evaluated
+#### Circular buffer and polling
+Update: I added `buffer.go` as a proof-of-concept of this. It works just as `main.go` only it considers "last 60 seconds" as last 60 seconds the server was running, not real life as `main.go`.
+
+I also considered using a [circular buffer](https://en.wikipedia.org/wiki/Circular_buffer) slice with a size of 60 (one for each second) and utilizing `time.newTicker`. Having a buffer temporarily holding for holding all requests coming in and flushing in them into the circular buffer each second using `time.NewTicker(10)` for timing. This would remove need to validate if it was stale or not. I chose not to due to the flush being only each second (or less), which could cause it not to be 100% accuracy, and the constant polling.
+
 #### JSON write only on shutdown
 Another option I considered was only writing to a JSON file when shutting down the server, by f.ex.
 ```
@@ -32,5 +39,3 @@ func main() {
 ```
 I chose not to due to persistence of writing more, my solution already works fine with a goroutine (time/performance is not an issue) and a server/application isn't always "gracefully" shut down.
 
-#### Circular buffer and polling
-I also considered using a [circular buffer](https://en.wikipedia.org/wiki/Circular_buffer) slice with a size of 60 (one for each second) and utilizing `time.newTicker`. Having a buffer temporarily holding for holding all requests coming in and flushing in them into the circular buffer each second using `time.NewTicker(1 * time.Second)` for timing. This would remove need to validate if it was stale or not. I chose not to due to the flush being only each second (or less), which could cause it not to be 100% accuracy, and the constant polling.
