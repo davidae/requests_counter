@@ -47,8 +47,37 @@ func (c *Counter) Sum() int64 {
 	return sum
 }
 
+// To ensure that the last 60 seconds of requests adhere to "real life"
+// time and not server uptime.
+func validateCounter(c *Counter) {
+	currentTime := time.Now()
+	diff := currentTime.Sub(c.LastUpdate) // Number of seconds to invalidate
+
+	// Past 60 seconds in real time, no need to store current values in Counter
+	if diff > 60*time.Second {
+		for i := 0; i < len(c.TimeRequests); i++ {
+			c.TimeRequests[i] = 0
+		}
+	} else {
+		// Reset a certain time range `diff` seconds of the rolling window
+		indexs := int(diff) / int(time.Second)
+		fromBack := len(c.TimeRequests) - 1
+
+		for i := 0; i < indexs; i++ {
+			// fmt.Println(currentTime.Second() - i)
+			if currentTime.Second()-i >= 0 {
+				c.TimeRequests[currentTime.Second()-i] = 0
+			} else {
+				c.TimeRequests[fromBack] = 0
+				fromBack--
+			}
+		}
+	}
+}
+
 func main() {
 	counter := loadCounterFromJSON()
+	validateCounter(counter)
 
 	flushTicker := time.NewTicker(10 * time.Millisecond)
 	stopChan := make(chan os.Signal)
